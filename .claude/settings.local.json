@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Skill(ralph-wiggum:ralph-loop)",
+      "Bash(npx tsc:*)",
+      "Bash(npx expo export:*)",
+      "Bash(node -e:*)",
+      "Bash(for f in src/presentation/navigation/RootNavigator.tsx src/state/auth/AuthContext.tsx src/domain/astrology/bazi/calculator.ts src/core/constants/elements.ts)",
+      "Bash(do node -e \"require\\(''@babel/core''\\).transformFileSync\\(''$f'', { presets: [''@babel/preset-typescript'', ''@babel/preset-react''] }\\); console.log\\(''$f: OK''\\)\")",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(npx jest:*)",
+      "Bash(npx ts-node --transpile-only src/domain/astrology/bazi/test-bazi.ts)",
+      "Bash(git add:*)"
+    ]
+  }
+}

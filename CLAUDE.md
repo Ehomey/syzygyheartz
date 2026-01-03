@@ -18,42 +18,121 @@ npm run ios          # Run on iOS (macOS only)
 npm run web          # Run web version
 ```
 
+### Testing
+
+```bash
+npx ts-node --transpile-only src/domain/astrology/bazi/test-bazi.ts  # Run BaZi tests
+```
+
 ## Architecture
+
+Clean layered architecture separating concerns:
 
 ### Entry Points
 - `SyzygyHearts/index.ts` - App entry point
-- `SyzygyHearts/App.tsx` - Main component with navigation, screens, and most UI logic (large monolithic file)
+- `SyzygyHearts/App.tsx` - Minimal root component (~22 lines)
 
 ### Source Structure (`SyzygyHearts/src/`)
 
-| Directory | Purpose |
-|-----------|---------|
-| `astrology/` | BaZi calculations, zodiac logic, element compatibility |
-| `components/` | Reusable UI: `AuspiciousTimeWidget`, `ElementFusion`, `RedThreadVisual`, `BaZiChartInteractive` |
-| `screens/` | Full screens: `DestinyDashboard`, `RedThreadGarden`, `MatchFeedScreen`, `ChatScreen`, onboarding |
-| `services/` | Business logic: `auspiciousService` (timing calculations), `astrology` (chart generation) |
-| `data/` | Static data: `compatibilityMatrix`, `zodiacData`, `auspiciousData`, `destinyReadings` |
-| `contexts/` | React contexts: `AuthContext` |
-| `config/` | Firebase configuration |
+```
+src/
+├── core/                    # Foundation layer
+│   ├── types/               # TypeScript type definitions
+│   │   ├── astrology.ts     # FiveElement, ZodiacAnimal, BaZiChart, Pillar
+│   │   ├── user.ts          # UserProfile, BirthData
+│   │   └── messaging.ts     # Conversation, Message types
+│   └── constants/           # App-wide constants
+│       ├── colors.ts        # COLORS, ELEMENT_COLORS
+│       └── elements.ts      # Element cycles, stem/branch mappings
+│
+├── domain/                  # Business logic layer
+│   └── astrology/
+│       └── bazi/            # BaZi (Four Pillars) calculations
+│           ├── julian-day.ts    # Julian Day Number conversions
+│           ├── calculator.ts    # Core BaZi algorithm
+│           └── test-bazi.ts     # 26 unit tests
+│
+├── state/                   # State management layer (Context + useReducer)
+│   └── auth/
+│       ├── types.ts         # AuthState, AuthAction
+│       ├── reducer.ts       # authReducer
+│       └── AuthContext.tsx  # AuthProvider, useAuth hook
+│
+├── presentation/            # UI layer
+│   ├── components/
+│   │   ├── astrology/       # ElementBadge, YuanFenScore, RedThreadLine, ZodiacWheel
+│   │   ├── decorative/      # StarsBackground, TraditionalBorder
+│   │   ├── cards/           # RedThreadCard
+│   │   └── navigation/      # TabIcon
+│   ├── screens/
+│   │   ├── onboarding/      # WelcomeScreen, BirthInputScreen, PermissionsScreen
+│   │   └── main/            # HomeScreen, HoroscopeScreen, MessagesScreen, ProfileScreen, CommunityScreen
+│   └── navigation/
+│       ├── MainTabs.tsx     # Bottom tab navigator
+│       └── RootNavigator.tsx # Root stack navigator
+│
+└── (legacy directories)     # Old structure - being migrated
+    ├── screens/             # DestinyDashboard still used
+    ├── services/            # auspiciousService, astrology
+    └── data/                # compatibilityMatrix, zodiacData
+```
 
-### Key Types (`src/types.ts`)
-- `FiveElement` - Wu Xing elements: Wood, Fire, Earth, Metal, Water
+### Key Types (`src/core/types/`)
+
+- `FiveElement` - Wu Xing elements: `'Wood' | 'Fire' | 'Earth' | 'Metal' | 'Water'`
 - `ZodiacAnimal` - 12 Chinese zodiac animals
-- `FourPillars` / `BaZiChart` - BaZi chart structure with year/month/day/hour pillars
-- `HeavenlyStem` / `EarthlyBranch` - Traditional Chinese calendar components
+- `HeavenlyStem` - 10 Heavenly Stems (Jia, Yi, Bing, etc.)
+- `EarthlyBranch` - 12 Earthly Branches (Zi, Chou, Yin, etc.)
+- `Pillar` - Single pillar with stem, branch, elements, zodiac
+- `BaZiChart` - Complete four pillars chart with element balance
 
-### Color System
-Uses Chinese-inspired palette defined in `App.tsx`:
-- `chineseRed` (#C41E3A), `imperialGold` (#FFD700), `jadeGreen` (#00A86B)
-- Five Element colors: metal, wood, water, fire, earth
+### Color System (`src/core/constants/colors.ts`)
+
+```typescript
+import { COLORS, ELEMENT_COLORS } from './src/core/constants';
+
+COLORS.chineseRed     // #C41E3A
+COLORS.imperialGold   // #FFD700
+COLORS.jadeGreen      // #00A86B
+COLORS.inkBlack       // #1C1C1C
+COLORS.creamWhite     // #FFFDD0
+
+ELEMENT_COLORS.Wood   // #00A86B
+ELEMENT_COLORS.Fire   // #C41E3A
+ELEMENT_COLORS.Earth  // #CC7722
+ELEMENT_COLORS.Metal  // #E8E8E8
+ELEMENT_COLORS.Water  // #003366
+```
+
+### BaZi Algorithm (`src/domain/astrology/bazi/`)
+
+The BaZi calculator uses Julian Day Number for accurate sexagenary cycle calculations:
+
+```typescript
+import { calculateBaZi } from './src/domain/astrology/bazi';
+
+const chart = calculateBaZi(1990, 5, 15, 12);
+// Returns: { year, month, day, hour, dayMasterElement, elementBalance, ... }
+```
 
 ## Coding Conventions
 
-- Components: PascalCase filenames (e.g., `RedThreadPath.tsx`)
-- Utilities/data: camelCase (e.g., `compatibilityMatrix.ts`)
-- Group imports: React first, then third-party, then local
-- Types go in `src/types.ts` for shared types
+- **Components**: PascalCase filenames (e.g., `ElementBadge.tsx`)
+- **Utilities/data**: camelCase (e.g., `calculator.ts`)
+- **Imports order**: React → third-party → local (core → domain → state → presentation)
+- **Types**: Import from `src/core/types`
+- **Constants**: Import from `src/core/constants`
+- **State**: Use `useAuth()` hook from `src/state`
 
-## Testing
+## State Management
 
-No test runner configured. Example test file at `src/services/auspiciousService.test.example.ts`. Name test files with `.test.ts` or `.test.tsx` suffix.
+Using React Context + useReducer pattern:
+
+```typescript
+import { useAuth } from './src/state';
+
+function MyComponent() {
+  const { state, login, logout } = useAuth();
+  // state.isAuthenticated, state.user, state.baziChart
+}
+```
